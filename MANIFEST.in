@@ -1,0 +1,5 @@
+include README.md LICENSE pyproject.toml
+recursive-include preupload/static *
+recursive-include preupload/templates *
+recursive-include preupload/migrations *.py
+prune preupload/migrations/__pycache__

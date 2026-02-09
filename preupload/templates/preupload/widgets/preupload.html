@@ -1,0 +1,4 @@
+<div class="preupload-widget" data-preupload data-preupload-url="{{ widget.preupload_url }}" data-preupload-csrf-token="{{ widget.preupload_csrf_token }}">
+    {% include widget.super_template %}
+    <input type="hidden" name="{{ widget.name_token }}" value="{{ widget.token_value }}">
+</div>
