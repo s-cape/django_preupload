@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .storage import storage
 from . import tokens
-from .widgets import PreuploadFileWidget, PreuploadImageWidget
+from .widgets import PreuploadClearableFileWidget, PreuploadFileWidget
 
 
 def _wrap_preupload_as_uploaded_file(preupload):
@@ -22,8 +22,21 @@ def _wrap_preupload_as_uploaded_file(preupload):
     )
 
 
+def _resolve_token_to_uploaded(token):
+    """Resolve preupload token to SimpleUploadedFile; raise ValidationError on failure."""
+    preupload = tokens.resolve_preupload_token(token.strip())
+    if preupload is None:
+        raise forms.ValidationError("Invalid or expired upload. Please upload again.")
+    try:
+        return _wrap_preupload_as_uploaded_file(preupload)
+    except Exception:
+        raise forms.ValidationError("Invalid or expired upload. Please upload again.")
+
+
 class PreuploadFileField(forms.FileField):
-    """Like FileField but resolves token from POST when no new file; injects preuploaded file."""
+    """FileField that resolves a preupload token (value from widget); file is only ever from token, not from request.FILES."""
+
+    widget = PreuploadFileWidget
 
     def bound_data(self, data, initial):
         """Return token for display when re-rendering bound form (FileField normally returns initial only)."""
@@ -37,40 +50,44 @@ class PreuploadFileField(forms.FileField):
         name = getattr(self, "_preupload_name", None)
         if not name:
             return super().clean(value, initial=initial)
-        files = (getattr(self.form, "files", None) or {}) if self.form else {}
-        data = (getattr(self.form, "data", None) or {}) if self.form else {}
-        token_name = name + "_token"
-        file_from_post = files.get(name)
-        if file_from_post:
-            return super().clean(file_from_post, initial=initial)
-        token = data.get(token_name) or (value if isinstance(value, str) else "")
-        if not token:
+        token = (value if isinstance(value, str) else "") or ""
+        if not token.strip():
             return super().clean(value, initial=initial)
-        preupload = tokens.resolve_preupload_token(token.strip())
-        if preupload is None:
-            raise forms.ValidationError(
-                "Invalid or expired upload. Please upload again."
-            )
-        try:
-            uploaded = _wrap_preupload_as_uploaded_file(preupload)
-        except Exception:
-            raise forms.ValidationError(
-                "Invalid or expired upload. Please upload again."
-            )
+        uploaded = _resolve_token_to_uploaded(token)
+        return super().clean(uploaded, initial=initial)
+
+
+class PreuploadImageField(forms.ImageField):
+    """ImageField + preupload token resolution; same as ImageField, only adds hidden token input."""
+
+    def bound_data(self, data, initial):
+        if data and isinstance(data, str):
+            stripped = data.strip()
+            if stripped:
+                return stripped
+        return initial
+
+    def clean(self, value, initial=None):
+        name = getattr(self, "_preupload_name", None)
+        if not name:
+            return super().clean(value, initial=initial)
+        token = (value if isinstance(value, str) else "") or ""
+        if not token.strip():
+            return super().clean(value, initial=initial)
+        uploaded = _resolve_token_to_uploaded(token)
         return super().clean(uploaded, initial=initial)
 
 
 class PreuploadFormMixin:
     """
-    Replaces FileField/ImageField with PreuploadFileField and PreuploadWidget.
-    Override preupload_field_widgets to customize which widget is used for which field type
-    (first matching type wins; list (field_type, widget_class) tuples).
+    Replaces FileField with PreuploadFileField, ImageField with PreuploadImageField, and sets Preupload widget.
+    File data is only from the preupload token (not from request.FILES).
+    Widget: clearable when field is not required, else non-clearable.
+    Override preupload_field_widgets with (field_type, widget_class) tuples to customize.
     """
 
-    preupload_field_widgets = [
-        (forms.ImageField, PreuploadImageWidget),
-        (forms.FileField, PreuploadFileWidget),
-    ]
+    preupload_field_widgets = ()  # optional override; default is by field.required
+    preupload_skip_fields = ()  # optional: list of field names to skip (e.g. for ModelForm)
 
     def __init__(self, *args, **kwargs):
         kwargs.pop("request", None)
@@ -81,26 +98,30 @@ class PreuploadFormMixin:
         for field_cls, widget_cls in self.preupload_field_widgets:
             if isinstance(field, field_cls):
                 return widget_cls
-        return PreuploadFileWidget
+        return (
+            PreuploadClearableFileWidget if not field.required else PreuploadFileWidget
+        )
 
     def _wrap_file_fields(self):
         from django.forms import FileField as BaseFileField
         from django.forms import ImageField
 
+        skip_names = getattr(self, "preupload_skip_fields", ())
         for name, field in list(self.fields.items()):
-            if getattr(field, "preupload_skip", False):
+            if name in skip_names or getattr(field, "preupload_skip", False):
                 continue
-            if isinstance(field, PreuploadFileField):
+            if isinstance(field, (PreuploadFileField, PreuploadImageField)):
                 continue
             if not isinstance(field, (BaseFileField, ImageField)):
                 continue
             new_field = copy.copy(field)
-            new_field.__class__ = PreuploadFileField
+            new_field.__class__ = (
+                PreuploadImageField
+                if isinstance(field, ImageField)
+                else PreuploadFileField
+            )
             new_field._preupload_name = name
             new_field.widget = self._get_preupload_widget_class(field)(
                 attrs=field.widget.attrs
             )
             self.fields[name] = new_field
-        for name, field in self.fields.items():
-            if isinstance(field, PreuploadFileField):
-                field.form = self

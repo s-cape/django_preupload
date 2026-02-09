@@ -14,7 +14,9 @@ class PreuploadWidgetMixin:
         context = super().get_context(name, value, attrs)
         context["widget"]["super_template"] = self.super_template
         context["widget"]["name_token"] = name + "_token"
-        context["widget"]["token_value"] = value if value else ""
+        context["widget"]["token_value"] = (
+            value if (value and isinstance(value, str)) else ""
+        )
         context["widget"]["preupload_url"] = getattr(
             self, "preupload_url", None
         ) or reverse("preupload:preupload")
@@ -36,7 +38,15 @@ class PreuploadFileWidget(PreuploadWidgetMixin, FileInput):
     super_template = FileInput.template_name
 
 
-class PreuploadImageWidget(PreuploadWidgetMixin, ClearableFileInput):
-    """ClearableFileInput + hidden token input."""
+class PreuploadClearableFileWidget(PreuploadWidgetMixin, ClearableFileInput):
+    """ClearableFileInput + hidden token input; use for optional file/image fields."""
 
     super_template = ClearableFileInput.template_name
+
+    def value_from_datadict(self, data, files, name):
+        if not self.is_required and data.get(self.clear_checkbox_name(name)):
+            return False
+        return super().value_from_datadict(data, files, name)
+
+
+PreuploadImageWidget = PreuploadClearableFileWidget

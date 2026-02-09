@@ -29,12 +29,14 @@ class Command(BaseCommand):
             if not dry_run:
                 try:
                     storage.delete(preupload.storage_ref)
+                    preupload.delete()
+                    count += 1
                 except Exception as e:
                     self.stderr.write(
                         "Failed to delete storage for pk=%s: %s" % (preupload.pk, e)
                     )
-                preupload.delete()
-            count += 1
+            else:
+                count += 1
         if dry_run:
             self.stdout.write("Would delete %d expired preupload(s)." % count)
         else:

@@ -57,7 +57,21 @@ if form.is_valid():
     # Save to your model or final storage; cleanup_preuploads removes expired records
 ```
 
-Include `{{ form.media }}` in your form template so the preupload script loads.
+Include `{{ form.media }}` in your form template so the preupload script loads. The file is only provided via the token on submit (not re-uploaded with the form).
+
+### Model fields
+
+For models, use `PreuploadFileModelField` or `PreuploadImageModelField` instead of `FileField` / `ImageField`. The ModelForm then gets preupload behaviour without needing the mixin (form field is `PreuploadFileField` or `PreuploadImageField` with `_preupload_name` set).
+
+```python
+from django.db import models
+from preupload.model_fields import PreuploadFileModelField, PreuploadImageModelField
+
+class Document(models.Model):
+    title = models.CharField(max_length=100)
+    file = PreuploadFileModelField(upload_to="docs/")
+    thumb = PreuploadImageModelField(upload_to="thumbs/", blank=True)
+```
 
 ### Admin
 
