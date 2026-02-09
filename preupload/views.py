@@ -5,7 +5,7 @@ from django.views.decorators.http import require_http_methods
 
 from .conf import preupload_config
 from .models import Preupload
-from .storage import save as storage_save
+from .storage import storage
 from . import tokens
 
 
@@ -24,9 +24,9 @@ def preupload(request):
             status=413,
         )
     try:
-        storage_ref = storage_save(file, name=file.name)
-    except Exception as e:
-        return JsonResponse({"error": "Storage failed", "detail": str(e)}, status=500)
+        storage_ref = storage.save(file, name=file.name)
+    except Exception:
+        return JsonResponse({"error": "Storage failed"}, status=500)
     original_filename = file.name or "upload"
     preupload = Preupload(storage_ref=storage_ref, original_filename=original_filename)
     preupload.save()

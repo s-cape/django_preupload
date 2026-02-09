@@ -15,7 +15,7 @@ A reusable Django mini-app that preserves uploaded files across failed form vali
 pip install django-preupload
 ```
 
-Add `preupload` to `INSTALLED_APPS` and include the app URLs:
+Requires Python 3.8+ and Django 3.2+. Add `preupload` to `INSTALLED_APPS` and include the app URLs:
 
 ```python
 # settings.py
@@ -41,7 +41,7 @@ python manage.py migrate preupload
 
 ### Forms
 
-Use `PreuploadFormMixin` (no request needed; widget gets preupload URL from reverse(), CSRF from cookie in JS):
+Use `PreuploadFormMixin` (no request needed):
 
 ```python
 from django import forms
@@ -56,6 +56,8 @@ if form.is_valid():
     file = form.cleaned_data["file"]
     # Save to your model or final storage; cleanup_preuploads removes expired records
 ```
+
+Include `{{ form.media }}` in your form template so the preupload script loads.
 
 ### Admin
 
@@ -80,6 +82,20 @@ python manage.py cleanup_preuploads
 
 Run periodically (e.g. cron). Use `--dry-run` to list what would be removed.
 
+### Customizing the “please wait” message
+
+To replace the default “please wait” alert (e.g. with a modal or toast), define `window.preuploadWarn` **before** the preupload script runs. Callback receives `{ form, widgets }`.
+
+```html
+<script>
+  window.preuploadWarn = function (ctx) {
+    // ctx.form, ctx.widgets
+    myToast("Please wait for the upload to finish.");
+  };
+</script>
+{{ form.media }}
+```
+
 ## Development and tests
 
 Use a virtual environment; do not install globally:
@@ -92,14 +108,12 @@ python3 -m venv .venv
 
 ### CI and releasing
 
-- **Tests:** On push/PR to `main`, [`.github/workflows/test.yml`](.github/workflows/test.yml) runs the test suite and Black across Python 3.8/3.10/3.12 and Django 3.2/4.2/5.0.
+- **Tests:** On push/PR to `main`, [`.github/workflows/test.yml`](.github/workflows/test.yml) runs the test suite and Black across Python 3.8/3.10/3.12 and Django 3.2/4.2/5.0. A separate **integration** job runs one Playwright test (form page, file select, token set via JS). To run the integration test locally: `pip install playwright`, `playwright install chromium`, then `python -m django test preupload.tests.test_integration --settings=preupload.tests.settings --tag=integration`.
 - **Test PyPI:** To publish on tag push, add a [Test PyPI](https://test.pypi.org) API token as repo secret `TWINE_PASSWORD`, then push a version tag (e.g. `git tag -a v0.1.0 -m "Release 0.1.0"` and `git push origin v0.1.0`). [`.github/workflows/publish.yml`](.github/workflows/publish.yml) builds and uploads to Test PyPI. Bump `version` in `pyproject.toml` before tagging. For production PyPI, change the workflow to use `twine upload` (no `--repository testpypi`) and use a PyPI token.
 
 ## Settings (optional)
 
-Configuration uses a single `PREUPLOAD` dict (similar to Django's `DATABASES` / `CACHES`). [preupload/conf.py](preupload/conf.py) defines defaults, merges with `settings.PREUPLOAD`, and exposes `preupload_config`.
-
-In `settings.py`:
+Optional configuration via a `PREUPLOAD` dict in `settings.py`:
 
 ```python
 PREUPLOAD = {
@@ -120,8 +134,18 @@ PREUPLOAD = {
 
 ## Security
 
-- Tokens are signed (Django `Signer`); resolution validates signature and expiry (created_at + TTL from settings).
-- Possession of the token is sufficient to resolve; no raw storage paths are exposed.
+- **Tokens:** Signed with Django’s `Signer` (uses `SECRET_KEY`). Resolution validates signature and expiry (created_at + TTL). Possession of the token is sufficient to resolve; no storage paths are exposed in responses.
+- **CSRF:** The preupload endpoint is protected by Django’s `CsrfViewMiddleware`; the JS sends the CSRF token (from the form or cookie).
+- **Upload path:** Stored files use a UUID-only path; no user-supplied name or extension is used, so path traversal is not possible.
+- **Size:** Uploads are rejected above `MAX_UPLOAD_SIZE` before any file is written.
+- **Server errors:** The preupload view returns a generic “Storage failed” message on 500; exception details are not sent to the client.
+
+**Deployer considerations:**
+
+- **Authorization:** The preupload view does not require login. If only authenticated users should upload, wrap the preupload URL (e.g. `@login_required` or URL middleware).
+- **Rate limiting:** There is no built-in rate limiting. Consider limiting requests to the preupload path (e.g. django-ratelimit or reverse proxy) to avoid storage abuse.
+- **Content validation:** File type or content is not validated at upload. Add validation in your form’s `clean()` or in a custom view if you need allowlists (e.g. images only).
+- **SECRET_KEY:** Rotating `SECRET_KEY` invalidates all existing preupload tokens; users will need to re-upload.
 
 ## License
 

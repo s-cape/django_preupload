@@ -4,7 +4,7 @@ from django import forms
 
 from preupload.forms import PreuploadFileField, PreuploadFormMixin
 from preupload.models import Preupload
-from preupload.storage import save as storage_save
+from preupload.storage import storage
 from preupload import tokens
 
 
@@ -24,7 +24,7 @@ class FormsTestCase(TestCase):
         self.assertEqual(form.cleaned_data["file"].read(), b"content")
 
     def test_form_with_token_resolves_preuploaded_file(self):
-        storage_ref = storage_save(
+        storage_ref = storage.save(
             __import__("io").BytesIO(b"preuploaded"), name="s.txt"
         )
         preupload = Preupload.objects.create(

@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 from datetime import timedelta
 
 from django.test import TestCase, override_settings
@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.core.management import call_command
 
 from preupload.models import Preupload
-from preupload.storage import save as storage_save
+from preupload.storage import storage
 
 
 class CleanupCommandTestCase(TestCase):
@@ -19,7 +19,7 @@ class CleanupCommandTestCase(TestCase):
         },
     )
     def test_cleanup_expired(self):
-        ref = storage_save(BytesIO(b"x"), name="x.txt")
+        ref = storage.save(BytesIO(b"x"), name="x.txt")
         p = Preupload.objects.create(
             token="t",
             storage_ref=ref,
@@ -28,11 +28,11 @@ class CleanupCommandTestCase(TestCase):
         Preupload.objects.filter(pk=p.pk).update(
             created_at=timezone.now() - timedelta(minutes=61)
         )
-        call_command("cleanup_preuploads")
+        call_command("cleanup_preuploads", stdout=StringIO(), stderr=StringIO())
         self.assertEqual(Preupload.objects.count(), 0)
 
     def test_cleanup_dry_run(self):
-        ref = storage_save(BytesIO(b"x"), name="x.txt")
+        ref = storage.save(BytesIO(b"x"), name="x.txt")
         p = Preupload.objects.create(
             token="t2",
             storage_ref=ref,
@@ -41,5 +41,7 @@ class CleanupCommandTestCase(TestCase):
         Preupload.objects.filter(pk=p.pk).update(
             created_at=timezone.now() - timedelta(minutes=61)
         )
-        call_command("cleanup_preuploads", "--dry-run")
+        call_command(
+            "cleanup_preuploads", "--dry-run", stdout=StringIO(), stderr=StringIO()
+        )
         self.assertEqual(Preupload.objects.count(), 1)

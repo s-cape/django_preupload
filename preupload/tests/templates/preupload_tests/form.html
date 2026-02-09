@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Preupload test form</title>
+    {{ form.media }}
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data" action="" id="preupload-form" novalidate>
+        {% csrf_token %}
+        {{ form }}
+        <button type="submit">Submit</button>
+    </form>
+</body>
+</html>

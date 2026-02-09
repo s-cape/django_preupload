@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 
 from preupload.conf import preupload_config
 from preupload.models import Preupload
-from preupload.storage import delete as storage_delete
+from preupload.storage import storage
 
 
 class Command(BaseCommand):
@@ -28,7 +28,7 @@ class Command(BaseCommand):
         for preupload in qs.iterator():
             if not dry_run:
                 try:
-                    storage_delete(preupload.storage_ref)
+                    storage.delete(preupload.storage_ref)
                 except Exception as e:
                     self.stderr.write(
                         "Failed to delete storage for pk=%s: %s" % (preupload.pk, e)

@@ -5,14 +5,14 @@ import copy
 from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .storage import open_file
+from .storage import storage
 from . import tokens
 from .widgets import PreuploadFileWidget, PreuploadImageWidget
 
 
 def _wrap_preupload_as_uploaded_file(preupload):
     """Open preuploaded file and wrap as UploadedFile-like for form validation."""
-    f = open_file(preupload.storage_ref)
+    f = storage.open(preupload.storage_ref)
     content = f.read()
     f.close()
     return SimpleUploadedFile(
@@ -24,6 +24,14 @@ def _wrap_preupload_as_uploaded_file(preupload):
 
 class PreuploadFileField(forms.FileField):
     """Like FileField but resolves token from POST when no new file; injects preuploaded file."""
+
+    def bound_data(self, data, initial):
+        """Return token for display when re-rendering bound form (FileField normally returns initial only)."""
+        if data and isinstance(data, str):
+            stripped = data.strip()
+            if stripped:
+                return stripped
+        return initial
 
     def clean(self, value, initial=None):
         name = getattr(self, "_preupload_name", None)

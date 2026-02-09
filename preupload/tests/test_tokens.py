@@ -4,13 +4,13 @@ from django.test import TestCase
 from django.utils import timezone
 
 from preupload.models import Preupload
-from preupload.storage import save as storage_save
+from preupload.storage import storage
 from preupload import tokens
 
 
 class TokensTestCase(TestCase):
     def setUp(self):
-        storage_ref = storage_save(__import__("io").BytesIO(b"x"), name="x.txt")
+        storage_ref = storage.save(__import__("io").BytesIO(b"x"), name="x.txt")
         self.preupload = Preupload.objects.create(
             token=None,
             storage_ref=storage_ref,
