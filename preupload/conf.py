@@ -18,7 +18,9 @@ if preupload_config.get("STORAGE") is None:
     _default = getattr(settings, "STORAGES", {}).get("default")
     preupload_config["STORAGE"] = _default or {
         "BACKEND": getattr(
-            settings, "DEFAULT_FILE_STORAGE", "django.core.files.storage.FileSystemStorage"
+            settings,
+            "DEFAULT_FILE_STORAGE",
+            "django.core.files.storage.FileSystemStorage",
         ),
         "OPTIONS": {},
     }

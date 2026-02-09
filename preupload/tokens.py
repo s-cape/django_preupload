@@ -26,6 +26,8 @@ def resolve_preupload_token(token):
         preupload = Preupload.objects.get(pk=pk)
     except (BadSignature, ValueError, TypeError, Preupload.DoesNotExist):
         return None
-    if timezone.now() > preupload.created_at + timedelta(minutes=preupload_config["TTL_MINUTES"]):
+    if timezone.now() > preupload.created_at + timedelta(
+        minutes=preupload_config["TTL_MINUTES"]
+    ):
         return None
     return preupload

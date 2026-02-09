@@ -16,9 +16,7 @@ class PreuploadViewTestCase(TestCase):
 
     def test_post_file_too_large_returns_413(self):
         # Test settings set MAX_UPLOAD_SIZE to 1MB
-        file = SimpleUploadedFile(
-            "big.txt", b"x" * (1024 * 1024 + 1), "text/plain"
-        )
+        file = SimpleUploadedFile("big.txt", b"x" * (1024 * 1024 + 1), "text/plain")
         response = self.client.post(
             reverse("preupload:preupload"),
             data={"file": file},

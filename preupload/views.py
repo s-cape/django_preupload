@@ -17,7 +17,10 @@ def preupload(request):
         return JsonResponse({"error": "No file uploaded"}, status=400)
     if file.size > preupload_config["MAX_UPLOAD_SIZE"]:
         return JsonResponse(
-            {"error": "File too large", "max_size": preupload_config["MAX_UPLOAD_SIZE"]},
+            {
+                "error": "File too large",
+                "max_size": preupload_config["MAX_UPLOAD_SIZE"],
+            },
             status=413,
         )
     try:
@@ -29,4 +32,6 @@ def preupload(request):
     preupload.save()
     preupload.token = tokens.generate_token(preupload)
     preupload.save(update_fields=["token"])
-    return JsonResponse({"token": preupload.token, "original_filename": original_filename})
+    return JsonResponse(
+        {"token": preupload.token, "original_filename": original_filename}
+    )

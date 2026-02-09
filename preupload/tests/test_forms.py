@@ -24,7 +24,9 @@ class FormsTestCase(TestCase):
         self.assertEqual(form.cleaned_data["file"].read(), b"content")
 
     def test_form_with_token_resolves_preuploaded_file(self):
-        storage_ref = storage_save(__import__("io").BytesIO(b"preuploaded"), name="s.txt")
+        storage_ref = storage_save(
+            __import__("io").BytesIO(b"preuploaded"), name="s.txt"
+        )
         preupload = Preupload.objects.create(
             token=None,
             storage_ref=storage_ref,

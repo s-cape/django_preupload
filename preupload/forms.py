@@ -40,11 +40,15 @@ class PreuploadFileField(forms.FileField):
             return super().clean(value, initial=initial)
         preupload = tokens.resolve_preupload_token(token.strip())
         if preupload is None:
-            raise forms.ValidationError("Invalid or expired upload. Please upload again.")
+            raise forms.ValidationError(
+                "Invalid or expired upload. Please upload again."
+            )
         try:
             uploaded = _wrap_preupload_as_uploaded_file(preupload)
         except Exception:
-            raise forms.ValidationError("Invalid or expired upload. Please upload again.")
+            raise forms.ValidationError(
+                "Invalid or expired upload. Please upload again."
+            )
         return super().clean(uploaded, initial=initial)
 
 
@@ -85,7 +89,9 @@ class PreuploadFormMixin:
             new_field = copy.copy(field)
             new_field.__class__ = PreuploadFileField
             new_field._preupload_name = name
-            new_field.widget = self._get_preupload_widget_class(field)(attrs=field.widget.attrs)
+            new_field.widget = self._get_preupload_widget_class(field)(
+                attrs=field.widget.attrs
+            )
             self.fields[name] = new_field
         for name, field in self.fields.items():
             if isinstance(field, PreuploadFileField):
