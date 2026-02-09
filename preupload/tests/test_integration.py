@@ -57,7 +57,9 @@ class PreuploadIntegrationTestCase(LiveServerTestCase):
     def _new_page(self, playwright):
         browser = _launch_browser(playwright)
         if browser is None:
-            self.skipTest("playwright browsers not installed (run: playwright install chromium)")
+            self.skipTest(
+                "playwright browsers not installed (run: playwright install chromium)"
+            )
         return browser.new_page(), browser
 
     def test_js_sets_token_after_file_select(self):
